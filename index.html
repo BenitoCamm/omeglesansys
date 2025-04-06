@@ -1,0 +1,217 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Omegle</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        #videos {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        video {
+            width: 320px;
+            height: 240px;
+            background-color: #222;
+            margin: 5px;
+        }
+        #chat {
+            width: 640px;
+            height: 300px;
+            border: 1px solid #ccc;
+            overflow-y: scroll;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        #messageInput {
+            width: 550px;
+            padding: 5px;
+        }
+        #sendButton {
+            width: 80px;
+            padding: 5px;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "socket.io-client": "https://cdn.socket.io/4.7.2/socket.io.esm.min.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>sansys chat peruano gay nigger te odio anda a ver mis links o me pongo cdt</h1>
+    <div id="videos">
+        <video id="localVideo" autoplay muted></video>
+        <video id="remoteVideo" autoplay></video>
+    </div>
+    <div id="chat"></div>
+    <div>
+        <input type="text" id="messageInput">
+        <button id="sendButton">Send</button>
+    </div>
+
+    <script type="module">
+        import { io } from "socket.io-client";
+
+        const socket = io();
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const chat = document.getElementById('chat');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+
+        let localStream;
+
+        async function startVideo() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localVideo.srcObject = localStream;
+            } catch (error) {
+                console.error('Error accessing media devices.', error);
+            }
+        }
+
+        startVideo();
+
+        socket.on('connect', () => {
+            console.log('Connected to socket');
+        });
+
+        socket.on('message', (message, clientId) => {
+            const messageElement = document.createElement('p');
+            messageElement.textContent = `${socket.id === clientId ? 'You' : 'Stranger'}: ${message}`;
+            chat.appendChild(messageElement);
+            chat.scrollTop = chat.scrollHeight;
+        });
+
+        sendButton.addEventListener('click', () => {
+            const message = messageInput.value;
+            socket.emit('message', message);
+            messageInput.value = '';
+        });
+
+        // Basic peer-to-peer implementation (needs signaling server for production)
+        let peerConnection;
+
+        socket.on('offer', async (offer) => {
+            console.log('Received offer...');
+            const iceCandidates = [];
+
+            peerConnection = new RTCPeerConnection();
+            peerConnection.ontrack = (event) => {
+                remoteVideo.srcObject = event.streams[0];
+            };
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                  console.log("found ice candidate")
+                    socket.emit('iceCandidate', event.candidate);
+                }
+            };
+
+            peerConnection.onicegatheringstatechange = (event) => {
+              console.log("ICE gathering state", peerConnection.iceGatheringState);
+            }
+
+            peerConnection.oniceconnectionstatechange = (event) => {
+              console.log("ICE connection state", peerConnection.iceConnectionState);
+            }
+
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+            await peerConnection.setRemoteDescription(offer);
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            socket.emit('answer', answer);
+        });
+
+        socket.on('answer', async (answer) => {
+            console.log('Received answer...');
+            await peerConnection.setRemoteDescription(answer);
+        });
+
+        socket.on('iceCandidate', async (candidate) => {
+            try {
+                await peerConnection.addIceCandidate(candidate);
+            } catch (e) {
+                console.error('Error adding ice candidate', e);
+            }
+        });
+
+        socket.on('startCall', () => {
+            console.log('Received start call...');
+            peerConnection = new RTCPeerConnection();
+            peerConnection.ontrack = (event) => {
+                remoteVideo.srcObject = event.streams[0];
+            };
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('iceCandidate', event.candidate);
+                }
+            };
+
+            peerConnection.onicegatheringstatechange = (event) => {
+              console.log("ICE gathering state", peerConnection.iceGatheringState);
+            }
+
+            peerConnection.oniceconnectionstatechange = (event) => {
+              console.log("ICE connection state", peerConnection.iceConnectionState);
+            }
+
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+
+            peerConnection.createOffer()
+                .then(offer => peerConnection.setLocalDescription(offer))
+                .then(() => {
+                    socket.emit('offer', peerConnection.localDescription);
+                })
+                .catch(error => console.error('Error creating offer', error));
+        });
+
+        // Find a partner
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                socket.emit('findPartner');
+            }
+        });
+
+        socket.on('partnerFound', () => {
+            console.log('Partner found!');
+            socket.emit('startCall');
+        });
+
+        socket.on('noPartnersAvailable', () => {
+            console.log('No partners available, trying again soon...');
+        });
+
+        // Keep trying to find a partner
+        setInterval(() => {
+            if (!peerConnection || peerConnection.iceConnectionState === 'disconnected' || peerConnection.iceConnectionState === 'failed') {
+                socket.emit('findPartner');
+            }
+        }, 5000);
+
+        // Handle disconnect
+        socket.on('disconnect', () => {
+            console.log('Disconnected from socket');
+            if (peerConnection) {
+                peerConnection.close();
+            }
+        });
+
+    </script>
+</body>
+</html>
