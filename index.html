@@ -1,60 +1,27 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Omegle Clone</title>
-    <script src="/socket.io/socket.io.js"></script>
-    <script defer src="script.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  </head>
-  <body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4">
-    <h1 class="text-3xl font-bold mb-4">Chat Anónimo</h1>
-    <div id="chat" class="bg-gray-800 w-full max-w-lg p-4 rounded-lg shadow-lg">
-      <div id="messages" class="h-64 overflow-y-scroll mb-4 bg-gray-700 p-2 rounded"></div>
-      <form id="form" class="flex gap-2">
-        <input id="input" autocomplete="off" class="flex-grow p-2 rounded bg-gray-600 text-white" placeholder="Escribe tu mensaje..." />
-        <button class="bg-blue-600 px-4 py-2 rounded">Enviar</button>
-      </form>
-    </div>
-    <p id="status" class="mt-4 text-sm">Esperando un compañero...</p>
-  </body>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>salamaleco</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 10vw; /* Tamaño responsive (ajústalo si quieres) */
+            text-transform: uppercase;
+            letter-spacing: 5px;
+        }
+    </style>
+</head>
+<body>
+    salamaleco
+</body>
 </html>
-
-
-// ==== public/script.js ====
-const socket = io();
-const form = document.getElementById("form");
-const input = document.getElementById("input");
-const messages = document.getElementById("messages");
-const status = document.getElementById("status");
-
-function addMessage(text, isMine = false) {
-  const msg = document.createElement("div");
-  msg.className = `mb-2 p-2 rounded ${isMine ? "bg-blue-600 text-white text-right" : "bg-gray-600"}`;
-  msg.innerText = text;
-  messages.appendChild(msg);
-  messages.scrollTop = messages.scrollHeight;
-}
-
-form.addEventListener("submit", (e) => {
-  e.preventDefault();
-  if (input.value) {
-    addMessage(input.value, true);
-    socket.emit("message", input.value);
-    input.value = "";
-  }
-});
-
-socket.on("chat_start", () => {
-  status.innerText = "Conectado con un desconocido";
-});
-
-socket.on("message", (msg) => {
-  addMessage(msg);
-});
-
-socket.on("partner_left", () => {
-  status.innerText = "Tu compañero se desconectó. Recargando...";
-  setTimeout(() => window.location.reload(), 3000);
-});
